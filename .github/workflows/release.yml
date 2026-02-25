@@ -1,0 +1,117 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        arch: [win-x64, win-arm64]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore SwiftJot/SwiftJot.csproj -r ${{ matrix.arch }}
+
+      - name: Build (Debug)
+        run: dotnet build SwiftJot/SwiftJot.csproj -c Debug --no-restore
+
+      - name: Publish AOT binary
+        run: dotnet publish SwiftJot/SwiftJot.csproj -c Release -r ${{ matrix.arch }}
+
+      - name: Verify AOT executable
+        shell: pwsh
+        run: |
+          $exe = "SwiftJot\bin\Release\net10.0-windows\${{ matrix.arch }}\publish\SwiftJot.exe"
+          if (Test-Path $exe) {
+            Write-Host "✓ AOT executable created: $exe"
+            $size = (Get-Item $exe).Length / 1MB
+            Write-Host "  File size: $([Math]::Round($size, 2)) MB"
+          } else {
+            Write-Error "AOT build failed: executable not found"
+            exit 1
+          }
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SwiftJot-${{ matrix.arch }}
+          path: SwiftJot/bin/Release/net10.0-windows/${{ matrix.arch }}/publish/
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release artifacts
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref }}" -replace 'refs/tags/v', ''
+          
+          foreach ($arch in @('win-x64', 'win-arm64')) {
+            $sourcePath = "artifacts\SwiftJot-$arch"
+            $zipName = "SwiftJot-$version-$arch.zip"
+            
+            if (Test-Path $sourcePath) {
+              Write-Host "Creating release artifact: $zipName"
+              Compress-Archive -Path "$sourcePath\*" -DestinationPath $zipName -Force
+              Get-Item $zipName | ForEach-Object { Write-Host "  Size: $([Math]::Round($_.Length / 1MB, 2)) MB" }
+            } else {
+              Write-Error "Artifact not found: $sourcePath"
+              exit 1
+            }
+          }
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: SwiftJot-*.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
