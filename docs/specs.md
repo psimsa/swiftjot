@@ -12,7 +12,7 @@ The modern Windows ecosystem lacks a true "scratchpad"—a frictionless, instant
     
 *   **UI Framework:** Avalonia UI (Fluent Theme for Windows 11 aesthetics)
     
-*   **Compilation:** .NET Native AOT (Ahead-of-Time)
+*   **Compilation:** .NET 10 Native AOT (Ahead-of-Time)
     
 *   **Target OS:** Windows 10 / Windows 11
     

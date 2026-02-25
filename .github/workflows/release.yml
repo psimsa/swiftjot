@@ -28,7 +28,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
       - name: Cache NuGet packages
         uses: actions/cache@v3
@@ -39,7 +39,7 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore dependencies
-        run: dotnet restore SwiftJot/SwiftJot.csproj
+        run: dotnet restore SwiftJot/SwiftJot.csproj -r win-x64
 
       - name: Build (Debug)
         run: dotnet build SwiftJot/SwiftJot.csproj -c Debug --no-restore
@@ -50,7 +50,7 @@ jobs:
       - name: Verify AOT executable
         shell: pwsh
         run: |
-          $exe = "SwiftJot\bin\Release\net8.0-windows\win-x64\publish\SwiftJot.exe"
+          $exe = "SwiftJot\bin\Release\net10.0-windows\win-x64\publish\SwiftJot.exe"
           if (Test-Path $exe) {
             Write-Host "✓ AOT executable created: $exe"
             $size = (Get-Item $exe).Length / 1MB
@@ -64,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SwiftJot-win-x64
-          path: SwiftJot/bin/Release/net8.0-windows/win-x64/publish/SwiftJot.exe
+          path: SwiftJot/bin/Release/net10.0-windows/win-x64/publish/SwiftJot.exe
           if-no-files-found: error
 
   release:
@@ -84,10 +84,10 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
       - name: Restore dependencies
-        run: dotnet restore SwiftJot/SwiftJot.csproj
+        run: dotnet restore SwiftJot/SwiftJot.csproj -r win-x64
 
       - name: Publish AOT binary
         run: dotnet publish SwiftJot/SwiftJot.csproj -c Release -r win-x64 --no-restore
@@ -96,7 +96,7 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ github.ref }}" -replace 'refs/tags/v', ''
-          $exe = "SwiftJot\bin\Release\net8.0-windows\win-x64\publish\SwiftJot.exe"
+          $exe = "SwiftJot\bin\Release\net10.0-windows\win-x64\publish\SwiftJot.exe"
           $artifact = "SwiftJot-$version-win-x64.exe"
           Copy-Item $exe $artifact
           Write-Host "Created release artifact: $artifact"

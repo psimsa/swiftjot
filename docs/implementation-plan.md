@@ -24,7 +24,7 @@ This document outlines the step-by-step development process for building, testin
     
     *   Add `x:CompileBindings="True"` to `MainWindow.axaml` and ensure the project builds.
         
-4.  **Milestone Test:** \* Run `dotnet publish -c Release -r win-x64`. Ensure the resulting `.exe` launches successfully.
+4.  **Milestone Test:** \* Run `dotnet publish -c Release -r win-x64`. Ensure the resulting `.exe` launches successfully. (.NET 10)
     
 
 ## Phase 2: System Tray & Core UI Layout
