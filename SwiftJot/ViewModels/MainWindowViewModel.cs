@@ -14,11 +14,10 @@ public class MainWindowViewModel : ViewModelBase
     private Note? _selectedNote;
     private Timer? _debounceTimer;
     private bool _isSettingsPanelVisible;
+    private string _hotKeyStatusMessage = string.Empty;
 
     public ObservableCollection<Note> Notes { get; } = new();
     public AppSettings Settings { get; private set; }
-
-    public event Action? HotKeyChanged;
 
     public Note? SelectedNote
     {
@@ -74,6 +73,14 @@ public class MainWindowViewModel : ViewModelBase
     }
 
     public string HotKeyDisplayText => Settings.HotKey.ToDisplayString();
+
+    public string HotKeyStatusMessage
+    {
+        get => _hotKeyStatusMessage;
+        private set => SetField(ref _hotKeyStatusMessage, value);
+    }
+
+    public bool HasHotKeyStatusMessage => !string.IsNullOrEmpty(_hotKeyStatusMessage);
 
     public MainWindowViewModel()
     {
@@ -141,7 +148,12 @@ public class MainWindowViewModel : ViewModelBase
         Settings.HotKey = config;
         _settingsService.SaveSettings(Settings);
         OnPropertyChanged(nameof(HotKeyDisplayText));
-        HotKeyChanged?.Invoke();
+    }
+
+    public void SetHotKeyStatusMessage(string message)
+    {
+        HotKeyStatusMessage = message;
+        OnPropertyChanged(nameof(HasHotKeyStatusMessage));
     }
 
     public void ToggleSettingsPanel()

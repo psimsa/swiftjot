@@ -84,6 +84,10 @@
                                 Click="RecordHotKey_Click"
                                 ToolTip.Tip="Click then press your desired key combination"/>
                     </StackPanel>
+                    <TextBlock Text="{Binding HotKeyStatusMessage}"
+                               IsVisible="{Binding HasHotKeyStatusMessage}"
+                               Foreground="OrangeRed"
+                               FontSize="12"/>
                 </StackPanel>
             </Border>
 

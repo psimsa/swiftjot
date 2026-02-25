@@ -26,8 +26,6 @@ public partial class MainWindow : Window
     {
         base.OnOpened(e);
         RegisterHotKey();
-        if (DataContext is MainWindowViewModel vm)
-            vm.HotKeyChanged += ReRegisterHotKey;
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)
@@ -72,13 +70,48 @@ public partial class MainWindow : Window
 
         var config = DataContext is MainWindowViewModel vm ? vm.Settings.HotKey : null;
         _hotKeyService = new HotKeyService();
-        _hotKeyService.Register(platformHandle.Handle, config);
+        var result = _hotKeyService.Register(platformHandle.Handle, config);
+
+        if (result != HotKeyRegistrationResult.Success && DataContext is MainWindowViewModel vm2)
+        {
+            var msg = result == HotKeyRegistrationResult.Conflict
+                ? "⚠ Hotkey is already in use by another application"
+                : "⚠ Failed to register hotkey";
+            vm2.SetHotKeyStatusMessage(msg);
+        }
     }
 
-    private void ReRegisterHotKey()
+    private void TryApplyHotKey(HotKeyConfig config)
     {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var platformHandle = TryGetPlatformHandle();
+        if (platformHandle is null) return;
+
+        // Unregister the old hotkey before attempting the new one.
         _hotKeyService?.Dispose();
-        RegisterHotKey();
+        _hotKeyService = new HotKeyService();
+        var result = _hotKeyService.Register(platformHandle.Handle, config);
+
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        if (result == HotKeyRegistrationResult.Success)
+        {
+            vm.UpdateHotKey(config);
+            vm.SetHotKeyStatusMessage(string.Empty);
+        }
+        else
+        {
+            // New hotkey failed — restore the previous registration.
+            _hotKeyService.Dispose();
+            _hotKeyService = new HotKeyService();
+            _hotKeyService.Register(platformHandle.Handle, vm.Settings.HotKey);
+
+            var msg = result == HotKeyRegistrationResult.Conflict
+                ? "⚠ Hotkey is already in use by another application"
+                : "⚠ Failed to register hotkey";
+            vm.SetHotKeyStatusMessage(msg);
+        }
     }
 
     private void AddNote_Click(object? sender, RoutedEventArgs e)
@@ -148,16 +181,30 @@ public partial class MainWindow : Window
         Focus();
     }
 
-    private void CaptureHotKey(KeyEventArgs e)
+    private void StopRecording()
     {
         _recordingHotKey = false;
         if (RecordHotKeyButton is not null)
             RecordHotKeyButton.Content = "Record";
+    }
 
+    private void CaptureHotKey(KeyEventArgs e)
+    {
         var key = e.Key;
+
+        // Keep recording while the user is still holding modifier keys.
         if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
-                 or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin or Key.Escape)
+                 or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin)
             return;
+
+        // Escape cancels recording without applying any change.
+        if (key is Key.Escape)
+        {
+            StopRecording();
+            return;
+        }
+
+        StopRecording();
 
         var modifiers = e.KeyModifiers;
         var config = new HotKeyConfig
@@ -165,12 +212,12 @@ public partial class MainWindow : Window
             UseCtrl = modifiers.HasFlag(KeyModifiers.Control),
             UseAlt = modifiers.HasFlag(KeyModifiers.Alt),
             UseShift = modifiers.HasFlag(KeyModifiers.Shift),
+            UseWin = modifiers.HasFlag(KeyModifiers.Meta),
             KeyCode = GetVirtualKeyCode(key),
             KeyDisplayName = key.ToString()
         };
 
-        if (DataContext is MainWindowViewModel vm)
-            vm.UpdateHotKey(config);
+        TryApplyHotKey(config);
     }
 
     private static uint GetVirtualKeyCode(Key key)
