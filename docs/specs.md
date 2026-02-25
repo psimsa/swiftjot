@@ -1,0 +1,64 @@
+# SwiftJot: The Instant Windows Scratchpad
+
+## 1\. Abstract
+
+The modern Windows ecosystem lacks a true "scratchpad"—a frictionless, instantly available text canvas. Heavyweight applications like Notion, Obsidian, or OneNote take too long to load and require too much organizational overhead just to write down a quick thought. Conversely, opening a new instance of Windows Notepad clutters the taskbar and forces the user to manually manage `.txt` files to avoid data loss.
+
+**SwiftJot** solves this by living entirely in the Windows System Tray. Triggered instantly by a global hotkey, it provides a lightning-fast, persistent, and visually modern text editing environment. Data is continuously saved in the background, meaning the user can close the app or restart their PC without ever losing a single keystroke.
+
+## 2\. Technical Stack
+
+*   **Language:** C#
+    
+*   **UI Framework:** Avalonia UI (Fluent Theme for Windows 11 aesthetics)
+    
+*   **Compilation:** .NET Native AOT (Ahead-of-Time)
+    
+*   **Target OS:** Windows 10 / Windows 11
+    
+
+## 3\. Core Features & UI Specifications
+
+*   **The System Tray Foundation:** The app launches silently on computer startup without a taskbar icon. It exists solely as an icon in the system tray. Clicking the tray icon toggles the visibility of the main window.
+    
+*   **Global Hotkey:** A system-wide shortcut (e.g., `Ctrl + Alt + Space`) instantly summons the SwiftJot window and focuses the text editor, allowing for immediate typing regardless of what other applications are open.
+    
+*   **Vertical Tab Interface:** The left pane of the UI utilizes an Avalonia `TabControl` (styled vertically). Users can quickly switch between different active "jots" or scratchpads.
+    
+*   **Frictionless Persistence:** There is no "Save" button. Every keystroke is immediately persisted to a local `AppData` JSON file. When the PC restarts, the app loads exactly as it was left.
+    
+*   **Export to TXT:** A simple context menu option allows the user to export the current scratchpad directly to a `.txt` or `.md` file on their desktop.
+    
+
+## 4\. Performance Targets & Native AOT Strategy
+
+To ensure SwiftJot feels like a native extension of the operating system, it must be compiled using **Native AOT**. This guarantees sub-second startup times and a minimal memory footprint (crucial for an app that runs constantly in the background).
+
+Because Native AOT aggressively trims code and disables dynamic reflection, the development process must strictly adhere to the following architectural rules:
+
+### A. UI Data Binding (Avalonia)
+
+Standard reflection-based XAML bindings will crash an AOT app. Every Avalonia view must use **Compiled Bindings**.
+
+*   *Requirement:* `x:CompileBindings="True"` must be declared at the top of every `.axaml` file. The Avalonia compiler will wire up the UI to the ViewModels at build-time rather than runtime.
+    
+
+### B. Serialization (System.Text.Json)
+
+Saving the user's notes to a JSON file cannot rely on standard runtime reflection.
+
+*   *Requirement:* The app must use **C# Source Generators** for JSON serialization. We will define a `JsonSerializerContext` partial class. At compile time, .NET will generate the hardcoded C# parsing logic required to save and load the `List<Note>` object from disk.
+    
+
+### C. Global Hotkeys (Win32 Interop)
+
+Third-party hotkey NuGet packages often rely on reflection or dynamic runtime features that conflict with AOT.
+
+*   *Requirement:* We will bypass heavy NuGet packages and use C# Interop to talk directly to Windows. We will use the modern `[LibraryImport("user32.dll")]` attribute (which is AOT-friendly) to call the native Windows `RegisterHotKey` and `UnregisterHotKey` APIs directly, hooking into the Avalonia window message loop to detect the keypress.
+    
+
+### D. System Tray Setup
+
+Avalonia natively supports system tray icons without heavy third-party workarounds.
+
+*   *Requirement:* We will define an `<TrayIcon>` in the `App.axaml` file, binding its `Clicked` event to a command that toggles the `IsVisible` property of the main Avalonia `Window`.
