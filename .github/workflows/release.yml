@@ -45,7 +45,7 @@ jobs:
         run: dotnet build SwiftJot/SwiftJot.csproj -c Debug --no-restore
 
       - name: Publish AOT binary
-        run: dotnet publish SwiftJot/SwiftJot.csproj -c Release -r win-x64 --no-restore
+        run: dotnet publish SwiftJot/SwiftJot.csproj -c Release -r win-x64
 
       - name: Verify AOT executable
         shell: pwsh
@@ -90,7 +90,7 @@ jobs:
         run: dotnet restore SwiftJot/SwiftJot.csproj -r win-x64
 
       - name: Publish AOT binary
-        run: dotnet publish SwiftJot/SwiftJot.csproj -c Release -r win-x64 --no-restore
+        run: dotnet publish SwiftJot/SwiftJot.csproj -c Release -r win-x64
 
       - name: Prepare release artifact
         shell: pwsh
