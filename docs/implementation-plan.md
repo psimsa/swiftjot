@@ -24,7 +24,7 @@ This document outlines the step-by-step development process for building, testin
     
     *   Add `x:CompileBindings="True"` to `MainWindow.axaml` and ensure the project builds.
         
-4.  **Milestone Test:** \* Run `dotnet publish -c Release -r win-x64`. Ensure the resulting `.exe` launches successfully. (.NET 10)
+4.  **Milestone Test:** Run `dotnet publish -c Release -r win-x64` and `dotnet publish -c Release -r win-arm64`. Ensure the resulting `.exe` files from both architectures launch successfully. (.NET 10)
     
 
 ## Phase 2: System Tray & Core UI Layout
@@ -148,14 +148,24 @@ This document outlines the step-by-step development process for building, testin
         
     *   Set up a trigger for pushed tags (e.g., `v*`).
         
-    *   Configure steps to:
+    *   Configure the workflow to build for both `win-x64` and `win-arm64` using a matrix strategy.
+        
+    *   Each architecture build step should:
         
         1.  Setup .NET and Rust (for Velopack).
             
-        2.  Run `dotnet publish` with AOT flags.
+        2.  Run `dotnet publish -c Release -r <arch>` with AOT flags for each architecture.
             
-        3.  Run `vpk pack`.
+        3.  Upload the full publish directory as an artifact (not just the executable, which ensures all runtime files are included).
             
-        4.  Upload the generated `-Setup.exe` and `.nupkg` assets to the GitHub Release.
+    *   The release job should:
+        
+        1.  Download all architecture artifacts.
+            
+        2.  Package each architecture's publish directory into a `.zip` file (e.g., `SwiftJot-v1.0.0-win-x64.zip`).
+            
+        3.  Run `vpk pack` for each architecture to generate Velopack installers and update metadata.
+            
+        4.  Upload all `.zip` files and Velopack assets (`*-Setup.exe`, `.nupkg`, `RELEASES`) to the GitHub Release.
             
 3.  **Milestone Test:** \* Push a `v1.0.0` tag. Download the built installer from GitHub, install it. Make a minor text change, push `v1.0.1`, and verify the installed app detects, downloads, and applies the update silently.

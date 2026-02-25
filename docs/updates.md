@@ -6,22 +6,23 @@ Thanks to .NET Native AOT, SwiftJot compiles down to a single, highly optimized 
 
 ## Path 1: The Portable "Binary Copy" (No Install)
 
-Because Native AOT statically links the .NET runtime and Avalonia UI into the executable, you do not need to ship an installer at all.
+Because Native AOT statically links the .NET runtime and Avalonia UI into the executable, you do not need to ship an installer at all. SwiftJot is distributed as a self-contained zip archive for each architecture (x64 and ARM64), containing the executable and all required runtime files.
 
 ### How it Works
 
-1.  Run `dotnet publish -c Release -r win-x64 /p:PublishAot=true`.
+1.  Run `dotnet publish -c Release -r win-x64` and `dotnet publish -c Release -r win-arm64` to generate publish directories for both architectures.
     
-2.  Grab the resulting `SwiftJot.exe`.
+2.  Package each publish folder into a zip file (e.g., `SwiftJot-v1.0.0-win-x64.zip`, `SwiftJot-v1.0.0-win-arm64.zip`).
     
-3.  Distribute this single file directly to users (via GitHub Releases or a simple download link).
+3.  Distribute these zip files directly to users via GitHub Releases.
     
+4.  Users extract the zip and run `SwiftJot.exe` directly from the extracted folder.
 
 ### Pros & Cons
 
-*   **Pros:** True zero-friction usage. Users can drop it anywhere (even a USB drive) and double-click to run. No admin rights are required.
+*   **Pros:** True zero-friction usage. Users can extract to any location (even a USB drive) and double-click to run. No admin rights are required. Multi-architecture support ensures compatibility across modern Windows devices.
     
-*   **Cons:** The user has to manually place it in their `shell:startup` folder if they want it to run on boot. They also have to manually download new versions.
+*   **Cons:** The user has to manually place the executable in their `shell:startup` folder if they want it to run on boot. They also have to manually download new versions.
     
 
 ## Path 2: Lightweight Installer & Auto-Update (Using Velopack)
@@ -41,13 +42,16 @@ To achieve a seamless, modern application experience with auto-updates pulling d
 
 ### The Developer Workflow (CI/CD)
 
-Whenever you are ready to release a new version of SwiftJot, you will use the Velopack CLI (`vpk`). Ideally, this should be automated using a **GitHub Actions** workflow triggered on a new tag (e.g., `v1.0.0`):
+When you use Velopack, the GitHub Actions workflow will be automated and triggered on a new tag (e.g., `v1.0.0`). The workflow will:
 
-1.  **Publish:** `dotnet publish -c Release -r win-x64 /p:PublishAot=true`
+1.  **Publish for multiple architectures:** Build and publish for both `win-x64` and `win-arm64` using a matrix strategy.
     
-2.  **Pack:** `vpk pack -u SwiftJot -v 1.0.1 -p path/to/publish/dir -e SwiftJot.exe`
+2.  **Pack with Velopack:** Use the Velopack CLI (`vpk`) to generate the installer and delta packages:
+    ```
+    vpk pack -u SwiftJot -v 1.0.1 -p path/to/publish/dir -e SwiftJot.exe
+    ```
     
-3.  **Release:** Upload the generated `-Setup.exe`, `.nupkg`, and `RELEASES` files directly to a new GitHub Release.
+3.  **Release to GitHub:** Upload the generated `-Setup.exe`, `.nupkg`, and `RELEASES` files from both architectures to a new GitHub Release.
     
 
 ### The Application Code (C# Integration)
@@ -99,4 +103,10 @@ Since SwiftJot doesn't have a traditional main window visible all the time, the 
 
 Offer **both**.
 
-Configure your GitHub Actions (or local build script) to output a zipped portable `SwiftJot.exe` (Path 1) alongside the Velopack `SwiftJot-Setup.exe` (Path 2) on your GitHub Releases page. This caters to power users who want standalone binaries and standard users who want frictionless auto-updates.
+Configure your GitHub Actions to:
+
+- **Path 1 (Portable):** Build for both `win-x64` and `win-arm64`, package each architecture's publish directory into a `.zip` file, and upload to GitHub Releases. Support users who prefer standalone binaries without installers.
+  
+- **Path 2 (Installer with Auto-Update):** Use Velopack to generate `Setup.exe` files for both architectures, along with delta packages and update metadata files, and upload to GitHub Releases. Support standard users who want frictionless auto-updates.
+
+This dual approach serves both power users and those who prefer automatic updates.
