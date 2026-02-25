@@ -10,10 +10,15 @@ namespace SwiftJot.ViewModels;
 public class MainWindowViewModel : ViewModelBase
 {
     private readonly StorageService _storageService;
+    private readonly SettingsService _settingsService;
     private Note? _selectedNote;
     private Timer? _debounceTimer;
+    private bool _isSettingsPanelVisible;
 
     public ObservableCollection<Note> Notes { get; } = new();
+    public AppSettings Settings { get; private set; }
+
+    public event Action? HotKeyChanged;
 
     public Note? SelectedNote
     {
@@ -33,6 +38,7 @@ public class MainWindowViewModel : ViewModelBase
         {
             if (_selectedNote is null) return;
             _selectedNote.Content = value;
+            AutoUpdateTitleIfNeeded(value);
             ScheduleSave();
         }
     }
@@ -44,14 +50,36 @@ public class MainWindowViewModel : ViewModelBase
         {
             if (_selectedNote is null) return;
             _selectedNote.Title = value;
+            _selectedNote.HasManualTitle = true;
             OnPropertyChanged();
             ScheduleSave();
         }
     }
 
+    public bool IsSettingsPanelVisible
+    {
+        get => _isSettingsPanelVisible;
+        set => SetField(ref _isSettingsPanelVisible, value);
+    }
+
+    public bool CloseToTray
+    {
+        get => Settings.CloseToTray;
+        set
+        {
+            Settings.CloseToTray = value;
+            OnPropertyChanged();
+            _settingsService.SaveSettings(Settings);
+        }
+    }
+
+    public string HotKeyDisplayText => Settings.HotKey.ToDisplayString();
+
     public MainWindowViewModel()
     {
         _storageService = new StorageService();
+        _settingsService = new SettingsService();
+        Settings = _settingsService.LoadSettings();
         LoadNotes();
     }
 
@@ -89,8 +117,15 @@ public class MainWindowViewModel : ViewModelBase
     public void DeleteSelectedNote()
     {
         if (_selectedNote is null || Notes.Count <= 1) return;
-        var idx = Notes.IndexOf(_selectedNote);
-        Notes.Remove(_selectedNote);
+        DeleteNote(_selectedNote);
+    }
+
+    public void DeleteNote(Note note)
+    {
+        if (Notes.Count <= 1) return;
+        var idx = Notes.IndexOf(note);
+        if (idx < 0) return;
+        Notes.Remove(note);
         SelectedNote = Notes[Math.Max(0, idx - 1)];
         ScheduleSave();
     }
@@ -99,5 +134,31 @@ public class MainWindowViewModel : ViewModelBase
     {
         if (_selectedNote is null) return;
         File.WriteAllText(filePath, _selectedNote.Content);
+    }
+
+    public void UpdateHotKey(HotKeyConfig config)
+    {
+        Settings.HotKey = config;
+        _settingsService.SaveSettings(Settings);
+        OnPropertyChanged(nameof(HotKeyDisplayText));
+        HotKeyChanged?.Invoke();
+    }
+
+    public void ToggleSettingsPanel()
+    {
+        IsSettingsPanelVisible = !IsSettingsPanelVisible;
+    }
+
+    private void AutoUpdateTitleIfNeeded(string content)
+    {
+        if (_selectedNote is null || _selectedNote.HasManualTitle) return;
+
+        var firstLine = content.Split('\n', 2)[0].Trim();
+        if (firstLine.Length > 50) firstLine = firstLine[..50];
+        var newTitle = firstLine.Length > 0 ? firstLine : $"Jot {Notes.IndexOf(_selectedNote) + 1}";
+
+        if (_selectedNote.Title == newTitle) return;
+        _selectedNote.Title = newTitle;
+        OnPropertyChanged(nameof(SelectedNoteTitle));
     }
 }
