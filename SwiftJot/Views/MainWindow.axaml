@@ -15,26 +15,39 @@
         Icon="/Assets/tray.ico">
 
     <DockPanel>
-        <!-- Left Panel: Tab list + Add/Delete buttons -->
+        <!-- Left Panel: Tab list + Add button -->
         <DockPanel DockPanel.Dock="Left" Width="180" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}">
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="4">
                 <Button Content="+" Width="40" Click="AddNote_Click" ToolTip.Tip="New Jot"/>
-                <Button Content="-" Width="40" Margin="4,0,0,0" Click="DeleteNote_Click" ToolTip.Tip="Delete Jot"/>
             </StackPanel>
             <ListBox ItemsSource="{Binding Notes}"
                      SelectedItem="{Binding SelectedNote}"
                      Margin="0">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="models:Note">
-                        <TextBlock Text="{Binding Title}" Padding="8,4"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Title}" Padding="8,4" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            <Button Grid.Column="1"
+                                    Content="×"
+                                    Tag="{Binding}"
+                                    Click="DeleteNoteInline_Click"
+                                    Padding="4,2"
+                                    Margin="2,0"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    FontSize="12"
+                                    ToolTip.Tip="Delete Jot"/>
+                        </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
         </DockPanel>
 
-        <!-- Right Panel: Editor + toolbar -->
+        <!-- Right Panel: Editor + toolbar + settings -->
         <DockPanel>
             <DockPanel DockPanel.Dock="Top" Margin="8,4">
+                <Button DockPanel.Dock="Right" Content="Exit" Click="Exit_Click" Margin="4,0,0,0" ToolTip.Tip="Exit SwiftJot"/>
+                <Button DockPanel.Dock="Right" Content="⚙" Click="Settings_Click" Margin="4,0,0,0" ToolTip.Tip="Settings"/>
                 <Button DockPanel.Dock="Right" Content="Export" Click="Export_Click" Margin="4,0,0,0"/>
                 <TextBox Text="{Binding SelectedNoteTitle}"
                          Watermark="Title..."
@@ -42,6 +55,42 @@
                          BorderThickness="0"
                          Background="Transparent"/>
             </DockPanel>
+
+            <!-- Settings Panel (collapsible) -->
+            <Border DockPanel.Dock="Bottom"
+                    IsVisible="{Binding IsSettingsPanelVisible}"
+                    Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                    Padding="12,8"
+                    BorderThickness="0,1,0,0"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Settings" FontWeight="SemiBold" FontSize="13"/>
+                    <CheckBox Content="Minimize to tray on close (uncheck to exit on close)"
+                              IsChecked="{Binding CloseToTray}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Global Hotkey:" VerticalAlignment="Center"/>
+                        <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                                CornerRadius="4"
+                                Padding="8,4"
+                                MinWidth="120">
+                            <TextBlock Name="HotKeyDisplay"
+                                       Text="{Binding HotKeyDisplayText}"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                        <Button Name="RecordHotKeyButton"
+                                Content="Record"
+                                Click="RecordHotKey_Click"
+                                ToolTip.Tip="Click then press your desired key combination"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding HotKeyStatusMessage}"
+                               IsVisible="{Binding HasHotKeyStatusMessage}"
+                               Foreground="OrangeRed"
+                               FontSize="12"/>
+                </StackPanel>
+            </Border>
+
             <TextBox Name="ContentEditor"
                      Text="{Binding SelectedNoteContent}"
                      AcceptsReturn="True"

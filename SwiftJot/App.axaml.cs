@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using SwiftJot.Views;
 using System;
 
@@ -24,6 +25,8 @@ public partial class App : Application
             _mainWindow = new MainWindow();
             desktop.MainWindow = _mainWindow;
             _mainWindow.Show();
+
+            Program.ShowMainWindow = () => Dispatcher.UIThread.Post(ShowWindow);
         }
 
         base.OnFrameworkInitializationCompleted();
